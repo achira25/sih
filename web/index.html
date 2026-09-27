@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>India Red Zone Atlas</title>
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<style>
+html,body{margin:0;height:100%;font:14px/1.5 "Segoe UI",system-ui,sans-serif;color:#14232b}
+#map{position:absolute;inset:0}
+.box{position:absolute;background:#fff;border-radius:6px;box-shadow:0 2px 10px #0003;padding:12px}
+#ctl{top:10px;left:10px;width:230px}#an{top:10px;right:10px;width:320px;max-height:calc(100% - 20px);overflow:auto}
+h1{font:700 17px Georgia,serif;margin:0 0 6px}h2{font:600 14px Georgia,serif;margin:0 0 6px}
+label{display:block}.mu{color:#586a72;font-size:12px}.ph{color:#fff;padding:2px 9px;border-radius:10px;font-weight:600}
+ul{margin:4px 0;padding-left:18px}
+@media(max-width:700px){#an{top:auto;bottom:0;right:0;left:0;width:auto;max-height:45%;border-radius:12px 12px 0 0}}
+.rlink{display:flex;align-items:center;gap:8px;margin-top:10px;padding:8px 10px;border-radius:6px;background:#0f9d58;color:#fff;text-decoration:none;font-weight:600;font-size:13px}
+.rlink:hover{background:#0c8048}
+.rlink small{display:block;font-weight:400;opacity:.85;font-size:11px}
+</style></head><body><div id="map"></div>
+<div class="box" id="ctl"><h1>India Red Zone Atlas</h1>
+<label><input type="radio" name="l" value="all" checked> All hazards</label>
+<label><input type="radio" name="l" value="flood"> Flood</label>
+<label><input type="radio" name="l" value="landslide"> Landslide</label>
+<label><input type="radio" name="l" value="earthquake"> Earthquake</label>
+<label class="mu" style="margin-top:8px">Opacity <input id="op" type="range" min="10" max="100" value="75" style="width:100%"></label>
+<label><input type="checkbox" id="ev" checked> Past disasters</label>
+<label><input type="checkbox" id="hb" checked> Habitations (relocation plan)</label>
+<label><input type="checkbox" id="sh" checked> Shelters (live occupancy)</label>
+<div class="mu" id="live" style="margin-top:6px">● connecting…</div>
+<a class="rlink" id="rakshak-link" href="#" target="_blank" rel="noopener">
+ 🚑 Open Rakshak ResQ<small>Live SOS &amp; evacuation coordination</small>
+</a>
+</div>
+<div class="box" id="an"><h2>Site analysis</h2><div class="mu">Click the map for hazard scores, nearby past disasters and a relocation recommendation.</div></div>
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="partners.config.js"></script>
+<script>
+(function(){
+ const a=document.getElementById("rakshak-link");
+ const url=(window.PARTNERS&&window.PARTNERS.RAKSHAK_RESQ_URL)||"";
+ if(url){a.href=url}
+ else{a.href="#";a.style.opacity=".55";a.style.cursor="not-allowed";a.title="Set RAKSHAK_RESQ_URL in partners.config.js";a.addEventListener("click",e=>e.preventDefault())}
+})();
+</script>
+<script>
+const L=["all","flood","landslide","earthquake"],TN=["flood","landslide","earthquake"];
+const map=new maplibregl.Map({container:"map",center:[81,22.5],zoom:4,style:{version:8,sources:{o:{type:"raster",tiles:["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],tileSize:256,attribution:"© OpenStreetMap contributors"}},layers:[{id:"o",type:"raster",source:"o"}]}});
+map.addControl(new maplibregl.NavigationControl());
+let meta,sc,ev,habs=[];const j=async(u)=>{const r=await fetch(u);if(!r.ok)throw 0;return r.json()};
+const sel=()=>document.querySelector("input[name=l]:checked").value;
+map.on("load",async()=>{
+ meta=await j("data/meta.json");sc=new Uint8Array(await(await fetch("data/scores.bin")).arrayBuffer());ev=await j("data/events.geojson");
+ const b=meta.bounds,co=[[b.west,b.north],[b.east,b.north],[b.east,b.south],[b.west,b.south]];
+ L.forEach(l=>{map.addSource("h_"+l,{type:"image",url:`data/heat_${l}.png`,coordinates:co});
+  map.addLayer({id:"h_"+l,type:"raster",source:"h_"+l,paint:{"raster-opacity":.75,"raster-fade-duration":0},layout:{visibility:l=="all"?"visible":"none"}})});
+ try{map.addSource("st",{type:"geojson",data:await j("data/states.geojson")});map.addLayer({id:"st",type:"line",source:"st",paint:{"line-color":"#3b4d55","line-width":.8}})}catch{}
+ map.addSource("ev",{type:"geojson",data:ev});
+ map.addLayer({id:"ev",type:"circle",source:"ev",paint:{"circle-radius":6,"circle-stroke-color":"#fff","circle-stroke-width":1.5,"circle-color":["match",["get","type"],"flood","#2a7fc1","landslide","#8a5a2b","#7b2ea3"]}});
+ try{habs=await j("data/habitations.json");map.addSource("hb",{type:"geojson",data:{type:"FeatureCollection",features:habs.map(h=>({type:"Feature",geometry:{type:"Point",coordinates:[h.lon,h.lat]},properties:h}))}});
+  map.addLayer({id:"hb",type:"circle",source:"hb",paint:{"circle-radius":["+",4,["/",["sqrt",["get","population"]],4]],"circle-stroke-color":"#000","circle-stroke-width":1.5,
+   "circle-color":["match",["get","phase"],"Immediate","#b3261e","Short-term","#d9660f","Medium-term","#b8860b","#2f7d5b"]}})}catch{}
+ map.addSource("sh",{type:"geojson",data:{type:"FeatureCollection",features:[]}});
+ map.addLayer({id:"sh",type:"circle",source:"sh",paint:{"circle-radius":7,"circle-stroke-color":"#fff","circle-stroke-width":2,
+  "circle-color":["step",["get","occupancy_pct"],"#0f9d58",70,"#d48a12",90,"#b3261e"]}});
+ loadShelters(); setInterval(loadShelters, 20000);   // "real time" for a static site = poll on an interval
+});
+async function loadShelters(){
+ const live=document.getElementById("live");
+ try{
+  const d=await j("data/shelters.json?_="+Date.now());
+  const fc={type:"FeatureCollection",features:d.shelters.map(s=>({type:"Feature",geometry:{type:"Point",coordinates:[s.lon,s.lat]},properties:s}))};
+  if(map.getSource("sh")) map.getSource("sh").setData(fc);
+  const secs=Math.round((Date.now()-new Date(d.generated_at))/1000);
+  live.textContent=`● Live${d.is_sample?" (SAMPLE data)":""} — shelters updated ${secs}s ago`;
+  live.style.color=secs<120?"#0f9d58":"#b8860b";
+ }catch{live.textContent="● Shelter feed unavailable";live.style.color="#b3261e"}
+}
+document.querySelectorAll("input[name=l]").forEach(r=>r.onchange=()=>L.forEach(l=>map.setLayoutProperty("h_"+l,"visibility",l==sel()?"visible":"none")));
+op.oninput=()=>L.forEach(l=>map.setPaintProperty("h_"+l,"raster-opacity",op.value/100));
+ev_=document.getElementById("ev");ev_.onchange=()=>map.setLayoutProperty("ev","visibility",ev_.checked?"visible":"none");
+hb.onchange=()=>map.getLayer("hb")&&map.setLayoutProperty("hb","visibility",hb.checked?"visible":"none");
+sh.onchange=()=>map.getLayer("sh")&&map.setLayoutProperty("sh","visibility",sh.checked?"visible":"none");
+const km=(a,b,c,d)=>{const p=Math.PI/180,x=Math.sin((d-b)*p/2)**2+Math.cos(b*p)*Math.cos(d*p)*Math.sin((c-a)*p/2)**2;return 12742*Math.asin(Math.sqrt(x))};
+map.on("click",e=>{
+ const f=map.queryRenderedFeatures(e.point,{layers:["hb","ev","sh"].filter(i=>map.getLayer(i))})[0],A=document.getElementById("an");
+ if(f&&f.layer.id=="hb"){const p=f.properties;A.innerHTML=`<h2>${p.name}</h2><p>Population ${p.population}. Risk ${p.risk}/100<br>Flood ${(p.flood*100|0)}, landslide ${(p.landslide*100|0)}, earthquake ${(p.earthquake*100|0)}</p><p><span class="ph" style="background:#444">${p.phase}</span></p><p>${p.site&&p.site!="null"?`Proposed site: <b>${p.site}</b> (${p.distance_km} km)`:"No site assigned"}</p>`;return}
+ if(f&&f.layer.id=="ev"){const p=f.properties;A.innerHTML=`<h2>${p.name}${p.year&&p.year!="null"?", "+p.year:""}</h2><p>${p.type}. Reported deaths: ${p.deaths||"n/a"}</p>`;return}
+ if(f&&f.layer.id=="sh"){const p=f.properties;A.innerHTML=`<h2>${p.name}</h2><p>${p.type.replace("_"," ")}. Occupancy: <b>${p.occupancy} / ${p.capacity}</b> (${p.occupancy_pct}%)<br>Contact: ${p.contact}<br><span class="mu">Updated ${p.last_updated}</span></p>`;return}
+ analyze(e.lngLat.lng,e.lngLat.lat)});
+function analyze(lo,la){const A=document.getElementById("an"),{west:W,north:N}=meta.bounds,i=Math.floor((N-la)/meta.res),jx=Math.floor((lo-W)/meta.res);
+ if(i<0||jx<0||i>=meta.ny||jx>=meta.nx){A.innerHTML="<h2>Site analysis</h2><div class='mu'>Outside the study area.</div>";return}
+ const s=TN.map((_,t)=>sc[t*meta.ny*meta.nx+i*meta.nx+jx]/255),act=sel()=="all"?[0,1,2]:[TN.indexOf(sel())];
+ const t=act.reduce((a,b)=>s[b]>s[a]?b:a),v=s[t];
+ if(v<.01&&s.every(x=>x<.01)){A.innerHTML="<h2>Site analysis</h2><div class='mu'>No hazard recorded here (or outside India).</div>";return}
+ const near=ev.features.map(f=>[f,km(lo,la,...f.geometry.coordinates)]).filter(x=>x[1]<165).sort((a,b)=>a[1]-b[1]),close=near.some(x=>x[1]<65);
+ let ph,c;if(v>=.7&&close){ph="Immediate (within 1 year)";c="#b3261e"}else if(v>=.7||(v>=.5&&close)){ph="Short-term (1 to 3 years)";c="#d9660f"}else if(v>=.5){ph="Medium-term (3 to 5 years)";c="#b8860b"}else{ph="Monitor and prepare";c="#2f7d5b"}
+ const adv=["Move homes out of the active floodway onto raised, well-drained land above the recorded flood level.","Move households from slopes above about 25 degrees, debris and drainage lines.","Relocation does not reduce shaking. Retrofit to IS 1893 standards and relocate only from soft, liquefiable or fault-rupture ground."][t];
+ A.innerHTML=`<h2>Site analysis</h2><div class="mu">${la.toFixed(3)}°N ${lo.toFixed(3)}°E</div><p><span class="ph" style="background:${c}">${ph}</span></p><ul>${act.map(k=>`<li>${TN[k]}: ${Math.round(s[k]*100)}/100</li>`).join("")}</ul><p><b>Advice (${TN[t]}):</b> ${adv}</p><b>Past events within about 150 km</b><ul>${near.length?near.slice(0,5).map(([f,d])=>`<li>${f.properties.name}${f.properties.year?", "+f.properties.year:""}: ${f.properties.deaths||"n/a"} deaths (${Math.round(d)} km)</li>`).join(""):"<li>None in the record</li>"}</ul><div class="mu">Grid cell about 11 km. Use official village-scale data for decisions.</div>`}
+</script></body></html>

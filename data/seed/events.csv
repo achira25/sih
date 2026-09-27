@@ -1,0 +1,21 @@
+name,type,year,lon,lat,deaths,note
+Kosi flood,flood,2008,86.6,26.4,500,rounded; verify with state records
+Kerala floods,flood,2018,76.6,9.9,480,rounded
+Mumbai floods,flood,2005,72.85,19.07,1000,rounded
+Chennai floods,flood,2015,80.27,13.08,500,rounded
+Srinagar floods,flood,2014,74.8,34.08,300,rounded
+Kedarnath flood,flood,2013,79.07,30.73,6000,dead or missing
+Rishiganga flood,landslide,2021,79.7,30.5,200,dead or missing
+Malin landslide,landslide,2014,73.68,19.16,151,
+Wayanad landslides,landslide,2024,76.13,11.51,250,rounded
+Pettimudi landslide,landslide,2020,77,10,70,
+Joshimath subsidence,landslide,2023,79.56,30.55,0,~850 buildings cracked
+Sikkim glacial lake flood,landslide,2023,88.5,27.7,100,dead or missing
+Bhuj earthquake M7.7,earthquake,2001,70.2,23.4,13800,rounded
+Latur earthquake M6.2,earthquake,1993,76.5,18,9700,rounded
+Kangra earthquake M7.8,earthquake,1905,76.3,32.3,20000,rounded
+Bihar-Nepal earthquake M8.0,earthquake,1934,86.8,26.8,10000,India and Nepal
+Assam-Tibet earthquake M8.6,earthquake,1950,96.5,28.5,1500,India side
+Uttarkashi earthquake M6.8,earthquake,1991,78.8,30.8,770,
+Chamoli earthquake M6.8,earthquake,1999,79.4,30.4,100,
+Sikkim earthquake M6.9,earthquake,2011,88.2,27.7,110,

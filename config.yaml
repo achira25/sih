@@ -1,0 +1,50 @@
+bounds: {west: 68.0, south: 6.0, east: 98.0, north: 37.5}
+resolution_deg: 0.05         # ~5.5km cells (was 0.1 / ~11km) for a sharper, more elaborate map
+event_kernel_deg: 0.7        # how far a single past disaster raises nearby hazard (point reinforcement)
+default_event_weight: 0.22
+# Real ML: a Kernel Density Estimate trained on historical event coordinates,
+# one model per hazard type, weighted by severity. This is what actually
+# drives the map (see ml_kde_layer() in build_hazard.py) - not the seed
+# regions below, which only act as a fallback prior where events are sparse.
+ml:
+  enabled: true
+  weight: 0.9                # how much the trained KDE can raise a cell's score (0-1)
+  min_events: 4               # below this many events for a hazard type, skip KDE and fall back to seed_regions
+  bandwidth_km: {flood: 120, landslide: 80, earthquake: 150}   # KDE smoothing radius per hazard
+# Hazard layers. Per type the map takes the MAX over enabled layers, the ML
+# KDE score, and event-history reinforcement (see compute() in build_hazard.py).
+layers:
+  - {name: seed_regions, type: all, kind: gaussian, path: data/seed/regions.csv, enabled: true}
+  - name: bis_seismic_zones
+    type: earthquake
+    kind: polygon
+    path: data/raw/seismic_zones.geojson
+    attr: ZONE
+    mapping: {II: 0.2, III: 0.4, IV: 0.7, V: 1.0}
+    enabled: false
+  - name: gsi_landslide_susceptibility
+    type: landslide
+    kind: raster
+    path: data/raw/nlsm.tif
+    mapping: {1: 0.1, 2: 0.3, 3: 0.55, 4: 0.8, 5: 1.0}   # class value -> score; or use scale: [min, max]
+    enabled: false
+  - name: flood_prone_areas
+    type: flood
+    kind: polygon
+    path: data/raw/flood_prone.geojson
+    attr: HAZARD
+    mapping: {Low: 0.3, Moderate: 0.6, High: 0.9}
+    enabled: false
+events:
+  - data/seed/events.csv
+  - data/processed/usgs_quakes.csv
+  - data/processed/nasa_glc.csv
+shelters: data/raw/shelters.csv   # falls back to data/seed/shelters_sample.csv if missing
+relocation:
+  habitations: data/raw/habitations.csv
+  candidate_sites: data/raw/candidate_sites.csv
+  persons_per_ha: 120
+  max_site_hazard: 0.35
+  max_site_slope_deg: 15
+  thresholds: {immediate: 60, short_term: 45, medium_term: 30}
+

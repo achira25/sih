@@ -1,0 +1,7 @@
+name,lon,lat,type,capacity,occupancy,contact,last_updated
+SAMPLE Govt HS Shelter - Dehradun,78.03,30.32,relief_camp,500,180,SDMA Uttarakhand,2026-09-27T06:00:00Z
+SAMPLE Community Hall - Guwahati,91.75,26.15,community_shelter,300,290,Assam SDMA,2026-09-27T06:00:00Z
+SAMPLE District Stadium - Patna,85.14,25.6,relief_camp,1200,410,Bihar SDMA,2026-09-27T06:00:00Z
+SAMPLE Primary School - Wayanad,76.13,11.51,relief_camp,200,60,Kerala SDMA,2026-09-27T06:00:00Z
+SAMPLE Medical Camp - Srinagar,74.8,34.08,medical,150,40,J&K SDMA,2026-09-27T06:00:00Z
+SAMPLE Panchayat Bhavan - Bhuj,69.67,23.25,community_shelter,250,20,Gujarat SDMA,2026-09-27T06:00:00Z

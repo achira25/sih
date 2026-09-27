@@ -1,0 +1,10 @@
+numpy
+pandas
+pyyaml
+pillow
+requests
+scipy
+# needed only when you enable official polygon/raster layers in config.yaml
+geopandas
+rasterio
+scikit-learn
