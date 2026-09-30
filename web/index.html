@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>India Red Zone Atlas</title>
+<style>
+:root{--ink:#e9eef0;--mute:#93a3a8;--red:#c2331f;--amber:#d48a12;--bg0:#0b1012;--bg1:#141b1d}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:radial-gradient(ellipse at 50% 30%,var(--bg1),var(--bg0));
+ font:15px/1.5 "Segoe UI",system-ui,sans-serif;color:var(--ink)}
+#scene{position:absolute;inset:0}
+canvas{display:block}
+.veil{position:absolute;inset:0;pointer-events:none;background:
+ radial-gradient(ellipse at 50% 78%, rgba(194,51,31,.16), transparent 55%),
+ radial-gradient(ellipse at 50% 8%, rgba(0,0,0,.55), transparent 60%)}
+.hud{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:space-between;
+ padding:6vh 20px 6vh;text-align:center;pointer-events:none}
+.kicker{letter-spacing:.14em;font-size:12px;color:var(--amber);opacity:.9;margin-bottom:10px}
+h1{font:700 clamp(28px,5vw,52px)/1.05 Georgia,"Times New Roman",serif;margin:0;
+ background:linear-gradient(180deg,#fff, #c9d3d5);-webkit-background-clip:text;background-clip:text;color:transparent}
+.sub{max-width:52ch;margin:14px auto 0;color:var(--mute);font-size:15px}
+.bubble{position:relative;background:#161e20;border:1px solid #263033;border-radius:14px;padding:10px 18px;
+ font-size:14px;color:var(--ink);opacity:0;transform:translateY(6px);transition:opacity .35s ease,transform .35s ease;
+ box-shadow:0 10px 30px rgba(0,0,0,.35)}
+.bubble.show{opacity:1;transform:translateY(0)}
+.bubble:after{content:"";position:absolute;left:50%;bottom:-8px;transform:translateX(-50%);
+ border-width:8px 7px 0;border-style:solid;border-color:#161e20 transparent transparent}
+.cta{pointer-events:auto;display:inline-flex;align-items:center;gap:10px;margin-top:22px;padding:13px 26px;
+ border-radius:999px;border:1px solid rgba(233,238,240,.25);background:rgba(255,255,255,.04);color:var(--ink);
+ font-size:14px;font-weight:600;letter-spacing:.02em;cursor:pointer;backdrop-filter:blur(6px);
+ transition:background .2s,border-color .2s,transform .2s}
+.cta:hover{background:rgba(255,255,255,.09);border-color:rgba(233,238,240,.45);transform:translateY(-1px)}
+.cta .dot{width:7px;height:7px;border-radius:50%;background:var(--red);box-shadow:0 0 10px var(--red)}
+.hint{margin-top:10px;font-size:11.5px;color:var(--mute);opacity:.7}
+.skip{position:absolute;top:18px;right:18px;pointer-events:auto;color:var(--mute);font-size:12px;
+ text-decoration:none;border:1px solid #263033;padding:6px 12px;border-radius:999px}
+.skip:hover{color:var(--ink);border-color:#3a474a}
+@media(prefers-reduced-motion: reduce){.cta{transition:none}}
+</style></head>
+<body>
+<div id="scene"></div>
+<div class="veil"></div>
+<a class="skip" href="atlas.html">Skip →</a>
+<div class="hud">
+  <div>
+    <div class="kicker">SMART INDIA HACKATHON · DISASTER MANAGEMENT</div>
+    <h1>India Red Zone Atlas</h1>
+    <p class="sub">Meet Bhoomi — she reads hazard data so State Disaster<br>Management Authorities don't have to wait for a disaster to act.</p>
+  </div>
+  <div style="display:flex;flex-direction:column;align-items:center;gap:14px">
+    <div class="bubble" id="bubble">Hi, I'm Bhoomi.</div>
+    <button class="cta" id="enter"><span class="dot"></span>Enter the Atlas</button>
+    <div class="hint">Click Bhoomi, or the button, to open the live hazard map</div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+<script>
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(35, innerWidth/innerHeight, .1, 100);
+camera.position.set(0, 1.35, 9.2);
+camera.lookAt(0, -0.05, 0);
+const renderer = new THREE.WebGLRenderer({antialias:true, alpha:true});
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.shadowMap.enabled = true;
+document.getElementById('scene').appendChild(renderer.domElement);
+
+scene.add(new THREE.HemisphereLight(0x3a4548, 0x0a0d0e, 1.1));
+const key = new THREE.DirectionalLight(0xffe3c2, 1.5);
+key.position.set(2.5, 4, 3); key.castShadow = true;
+scene.add(key);
+const rim = new THREE.PointLight(0xc2331f, 6, 12);
+rim.position.set(-2.2, 1.6, -1.5);
+scene.add(rim);
+const amberGlow = new THREE.PointLight(0xd48a12, 3, 8);
+amberGlow.position.set(1.8, 0.6, 1.5);
+scene.add(amberGlow);
+
+const ground = new THREE.Mesh(
+  new THREE.CircleGeometry(6, 48),
+  new THREE.MeshStandardMaterial({color:0x101617, roughness:1})
+);
+ground.rotation.x = -Math.PI/2; ground.position.y = -1.35; ground.receiveShadow = true;
+scene.add(ground);
+for (let r=1;r<4;r++){
+  const ring = new THREE.Mesh(new THREE.RingGeometry(r*1.15, r*1.15+.012, 64),
+    new THREE.MeshBasicMaterial({color:0xc2331f, transparent:true, opacity:.16 - r*.03, side:THREE.DoubleSide}));
+  ring.rotation.x = -Math.PI/2; ring.position.y = -1.34;
+  scene.add(ring);
+}
+
+// --- Bhoomi: a small guide-bot mascot built from primitives ---
+const mat = c => new THREE.MeshStandardMaterial({color:c, roughness:.35, metalness:.25});
+const bot = new THREE.Group();
+
+const body = new THREE.Mesh(new THREE.CapsuleGeometry(.42, .55, 6, 16), mat(0xe9eef0));
+body.position.y = .35; body.castShadow = true; bot.add(body);
+
+const belt = new THREE.Mesh(new THREE.TorusGeometry(.43, .045, 10, 32), mat(0xc2331f));
+belt.rotation.x = Math.PI/2; belt.position.y = .05; bot.add(belt);
+
+const neck = new THREE.Mesh(new THREE.CylinderGeometry(.1,.12,.12,12), mat(0xbfc9cc));
+neck.position.y = .74; bot.add(neck);
+
+const head = new THREE.Group(); head.position.y = 1.02;
+const dome = new THREE.Mesh(new THREE.SphereGeometry(.34, 24, 20, 0, Math.PI*2, 0, Math.PI*0.62), mat(0xf4f7f8));
+dome.castShadow = true; head.add(dome);
+const visor = new THREE.Mesh(new THREE.SphereGeometry(.245, 24, 16, Math.PI*.15, Math.PI*.7, Math.PI*.28, Math.PI*.5),
+  new THREE.MeshStandardMaterial({color:0x0d1416, roughness:.15, metalness:.4}));
+visor.position.set(0,-.03,.06); head.add(visor);
+const eyeMat = new THREE.MeshBasicMaterial({color:0xd48a12});
+const eyeL = new THREE.Mesh(new THREE.SphereGeometry(.045,10,10), eyeMat); eyeL.position.set(-.11,-.02,.25);
+const eyeR = eyeL.clone(); eyeR.position.x = .11;
+head.add(eyeL, eyeR);
+const antenna = new THREE.Mesh(new THREE.CylinderGeometry(.012,.012,.22,6), mat(0xbfc9cc));
+antenna.position.set(0,.42,0); head.add(antenna);
+const antTip = new THREE.Mesh(new THREE.SphereGeometry(.035,10,10), new THREE.MeshBasicMaterial({color:0xc2331f}));
+antTip.position.set(0,.54,0); head.add(antTip);
+bot.add(head);
+
+function limb(len, topColor){
+  const g = new THREE.Group();
+  const m = new THREE.Mesh(new THREE.CapsuleGeometry(.075, len, 4, 10), mat(topColor));
+  m.position.y = -len/2 - .075; m.castShadow = true;
+  g.add(m);
+  return g;
+}
+const armL = limb(.5, 0xe9eef0); armL.position.set(-.46,.62,0);
+const armR = limb(.5, 0xe9eef0); armR.position.set(.46,.62,0);
+const legL = limb(.55, 0xbfc9cc); legL.position.set(-.19,.0,0);
+const legR = limb(.55, 0xbfc9cc); legR.position.set(.19,.0,0);
+bot.add(armL, armR, legL, legR);
+
+bot.position.y = -.35;
+bot.scale.setScalar(0.82);
+scene.add(bot);
+
+const clock = new THREE.Clock();
+let t = 0, talkPulse = 0;
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = clock.getDelta(); t += dt;
+  const walk = Math.sin(t*3.1);
+  legL.rotation.x = walk*.38; legR.rotation.x = -walk*.38;
+  armR.rotation.x = -walk*.3;
+  // left arm waves instead of swinging with the walk
+  armL.rotation.z = Math.sin(t*2.2)*.18 - .55;
+  armL.rotation.x = Math.sin(t*4.4)*.25;
+  bot.position.y = -.35 + Math.abs(Math.sin(t*3.1))*.045;
+  head.rotation.y = Math.sin(t*.8)*.18;
+  head.rotation.z = Math.sin(t*1.6)*.02;
+  eyeMat.color.setHSL(0.08, 1, 0.5 + Math.sin(t*6)*0.15);
+  rim.intensity = 5 + Math.sin(t*1.3)*1.2;
+  bot.rotation.y = Math.sin(t*.25)*.12;
+  renderer.render(scene, camera);
+}
+animate();
+addEventListener('resize', ()=>{
+  camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+// --- talking bubble lines, click-to-enter ---
+const lines = ["Hi, I'm Bhoomi.","I read flood, landslide and\nearthquake data across India.","I flag red zones before\ndisaster strikes.","Click me to see the live map →"];
+const bubble = document.getElementById('bubble');
+let li = 0;
+function showLine(){
+  bubble.classList.remove('show');
+  setTimeout(()=>{ bubble.textContent = lines[li % lines.length]; bubble.classList.add('show'); li++; }, 250);
+}
+showLine(); setInterval(showLine, 3200);
+
+function enter(){ location.href = 'atlas.html'; }
+document.getElementById('enter').addEventListener('click', enter);
+renderer.domElement.style.cursor = 'pointer';
+renderer.domElement.addEventListener('click', enter);
+</script>
+</body></html>
